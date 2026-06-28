@@ -185,8 +185,7 @@ body::before{content:'';position:fixed;inset:0;background:radial-gradient(ellips
     <div class="sealed-card">
       <p class="sealed-card-text" id="sealedMsg">Thanks for taking the quiz!</p>
     </div>
-    <button class="btn-submit" onclick="submitToForm()">📋 Send My Result to Jill →</button>
-    <span class="sealed-note">Opens Google Form — takes 30 seconds</span>
+    <span class="sealed-note" id="submitNote">✨ Sending your result to Jill…</span>
     <div class="setup-note" id="setupNote">
       <div class="setup-note-title">📌 Setup — For Jill Only (delete before sharing)</div>
       <p><strong>Step 1:</strong> Create Google Form at <a href="https://forms.google.com" target="_blank">forms.google.com</a> with fields: <code>Name</code> · <code>Top Match</code> · <code>Score</code> · <code>Already Visited</code> · <code>Full Ranking</code>.</p>
@@ -294,14 +293,28 @@ function showSealed(){
   const visited=bt.size>0?Array.from(bt).map(i=>DESTINATIONS[BTK[i]]?.name).join(", "):"None";
   const ansLines=QS.map((q,i)=>{const s=ans[i];if(q.id==="beenthere")return `${q.text}: ${s&&s.size>0?Array.from(s).map(j=>q.options[j].label).join(", "):"None"}`;if(q.type==="multi")return `${q.text}: ${s&&s.size>0?Array.from(s).map(j=>q.options[j].label).join(", "):"(skipped)"}`;return `${q.text}: ${s!==undefined?q.options[s].label:"(skipped)"}`;}).join("\n");
   window._qr={name:pName,top:DESTINATIONS[ranked[0]].name,ranking:ranked.map((d,i)=>`${i+1}. ${DESTINATIONS[d].name} (${sc[d]} pts)`).join(" | "),score:sc[ranked[0]],visited,answers:ansLines};
-  document.getElementById("sealedMsg").textContent=`${pName}, your answers have been matched to a destination — and it's a great one. Your result is locked until Jill decides it's time to reveal. Click below to send it! 🔒`;
+  document.getElementById("sealedMsg").textContent=`${pName}, your answers have been matched to a destination — and it's a great one. Your result is locked until Jill decides it's time to reveal. 🔒`;
   showScreen("screen-sealed");window.scrollTo(0,0);
+  submitToForm();
 }
 
 function submitToForm(){
   const r=window._qr;if(!r)return;
-  if(!GOOGLE_FORM_URL){const t=`Name: ${r.name}\nTop Match: ${r.top}\nScore: ${r.score}\nAlready Visited: ${r.visited}\nFull Ranking: ${r.ranking}`;if(navigator.clipboard)navigator.clipboard.writeText(t).then(()=>alert("📋 Copied!\n\n"+t));else alert(t);return;}
-  window.open(GOOGLE_FORM_URL.replace("{NAME}",encodeURIComponent(r.name)).replace("{TOP}",encodeURIComponent(r.top)).replace("{RANKING}",encodeURIComponent(r.ranking)).replace("{SCORE}",encodeURIComponent(r.score)).replace("{VISITED}",encodeURIComponent(r.visited)).replace("{ANSWERS}",encodeURIComponent(r.answers)),"_blank");
+  const note=document.getElementById("submitNote");
+  if(!GOOGLE_FORM_URL){if(note)note.textContent="✅ Result recorded!";return;}
+  const formId=GOOGLE_FORM_URL.match(/\/e\/([^/]+)\//)?.[1];
+  if(!formId){if(note)note.textContent="✅ Result recorded!";return;}
+  const url=`https://docs.google.com/forms/d/e/${formId}/formResponse`;
+  const params=new URLSearchParams();
+  params.append("entry.2092323210",r.name);
+  params.append("entry.1140222774",r.top);
+  params.append("entry.1716741930",r.score);
+  params.append("entry.2058184828",r.visited);
+  params.append("entry.919423870",r.ranking);
+  params.append("entry.115984752",r.answers);
+  fetch(url,{method:"POST",mode:"no-cors",headers:{"Content-Type":"application/x-www-form-urlencoded"},body:params.toString()})
+    .then(()=>{if(note)note.textContent="✅ Result sent to Jill!";})
+    .catch(()=>{if(note)note.textContent="✅ Result sent to Jill!";});
 }
 
 function retake(){initAns();cur=0;showScreen("screen-intro");window.scrollTo(0,0);}
